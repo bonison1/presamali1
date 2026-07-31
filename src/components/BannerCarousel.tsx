@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Card, CardContent } from '@/components/ui/card';
@@ -47,6 +46,22 @@ const BannerCarousel = () => {
     });
   }, [api]);
 
+  // Same fallback banner used when banner_settings is empty or errors out —
+  // just re-worded to match the Presamali brand instead of the old food copy.
+  const fallbackBanner: BannerSetting = {
+    id: 'fallback',
+    title: 'Handwoven Heritage',
+    subtitle: 'Kouna Bags & Accessories',
+    image_url: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=1920&h=600&fit=crop',
+    button_text: 'Shop Now',
+    button_link: '/shop',
+    secondary_button_text: 'Our Story',
+    secondary_button_link: '/about',
+    is_active: true,
+    display_order: 1,
+    is_published: true,
+  };
+
   const fetchBannerSettings = async () => {
     try {
       const { data, error } = await supabase
@@ -58,49 +73,13 @@ const BannerCarousel = () => {
 
       if (error) {
         console.error('Error fetching banner settings:', error);
-        setBannerSettings([{
-          id: 'fallback',
-          title: 'Authentic Flavors',
-          subtitle: 'Traditional Recipes',
-          image_url: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=1920&h=600&fit=crop',
-          button_text: 'Shop Now',
-          button_link: '/shop',
-          secondary_button_text: 'Our Story',
-          secondary_button_link: '/about',
-          is_active: true,
-          display_order: 1,
-          is_published: true,
-        }]);
+        setBannerSettings([fallbackBanner]);
       } else {
-        setBannerSettings(data.length > 0 ? data : [{
-          id: 'fallback',
-          title: 'Authentic Flavors',
-          subtitle: 'Traditional Recipes',
-          image_url: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=1920&h=600&fit=crop',
-          button_text: 'Shop Now',
-          button_link: '/shop',
-          secondary_button_text: 'Our Story',
-          secondary_button_link: '/about',
-          is_active: true,
-          display_order: 1,
-          is_published: true,
-        }]);
+        setBannerSettings(data.length > 0 ? data : [fallbackBanner]);
       }
     } catch (error) {
       console.error('Error fetching banner settings:', error);
-      setBannerSettings([{
-        id: 'fallback',
-        title: 'Authentic Flavors',
-        subtitle: 'Traditional Recipes',
-        image_url: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=1920&h=600&fit=crop',
-        button_text: 'Shop Now',
-        button_link: '/shop',
-        secondary_button_text: 'Our Story',
-        secondary_button_link: '/about',
-        is_active: true,
-        display_order: 1,
-        is_published: true,
-      }]);
+      setBannerSettings([fallbackBanner]);
     } finally {
       setLoading(false);
     }
@@ -108,8 +87,8 @@ const BannerCarousel = () => {
 
   if (loading) {
     return (
-      <div className="w-full h-[300px] md:h-[350px] bg-gray-200 animate-pulse flex items-center justify-center">
-        <div className="text-gray-500">Loading banners...</div>
+      <div className="w-full h-full bg-[#F1E4E0] animate-pulse flex items-center justify-center">
+        <div className="text-[#7D2F38]">Loading banners...</div>
       </div>
     );
   }
@@ -119,45 +98,45 @@ const BannerCarousel = () => {
   }
 
   return (
-    <div className="w-full">
-      <Carousel 
-        className="w-full"
+    <div className="w-full h-full">
+      <Carousel
+        className="w-full h-full"
         setApi={setApi}
         opts={{
           align: "start",
           loop: bannerSettings.length > 1,
         }}
       >
-        <CarouselContent>
+        <CarouselContent className="h-full">
           {bannerSettings.map((banner) => (
-            <CarouselItem key={banner.id}>
-              <Card className="border-0 shadow-none overflow-hidden">
-                <CardContent className="p-0 relative">
-                  <div className="relative h-[300px] md:h-[350px]">
+            <CarouselItem key={banner.id} className="h-full">
+              <Card className="border-0 shadow-none overflow-hidden h-full">
+                <CardContent className="p-0 relative h-full">
+                  <div className="relative h-full">
                     <img
                       src={banner.image_url}
                       alt={banner.title}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-60" />
+                    <div className="absolute inset-0 bg-[#2B1418]/55" />
                     <div className="absolute inset-0 flex items-center justify-center text-center text-white">
-                      <div className="space-y-6 max-w-4xl mx-auto px-4">
-                        <h1 className="text-4xl md:text-6xl font-bold">
+                      <div className="space-y-4 max-w-4xl mx-auto px-4">
+                        <h1 className="text-3xl md:text-5xl font-bold">
                           {banner.title}
                         </h1>
-                        <h2 className="text-2xl md:text-4xl font-light text-gray-300">
+                        <h2 className="text-lg md:text-2xl font-light text-[#F1E4E0]">
                           {banner.subtitle}
                         </h2>
-                        <div className="space-x-4 pt-4">
+                        <div className="space-x-4 pt-2">
                           <Link
                             to={banner.button_link}
-                            className="bg-white text-black px-8 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors inline-block"
+                            className="bg-white text-[#7D2F38] px-6 py-2.5 rounded-full font-semibold hover:bg-[#F9DAA5] transition-colors inline-block"
                           >
                             {banner.button_text}
                           </Link>
                           <Link
                             to={banner.secondary_button_link}
-                            className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-black transition-colors inline-block"
+                            className="border-2 border-white text-white px-6 py-2.5 rounded-full font-semibold hover:bg-white hover:text-[#7D2F38] transition-colors inline-block"
                           >
                             {banner.secondary_button_text}
                           </Link>
@@ -172,20 +151,20 @@ const BannerCarousel = () => {
         </CarouselContent>
         {bannerSettings.length > 1 && (
           <>
-            <CarouselPrevious className="left-8 bg-white/20 border-white/30 text-white hover:bg-white/30" />
-            <CarouselNext className="right-8 bg-white/20 border-white/30 text-white hover:bg-white/30" />
+            <CarouselPrevious className="left-4 bg-white/20 border-white/30 text-white hover:bg-white/30" />
+            <CarouselNext className="right-4 bg-white/20 border-white/30 text-white hover:bg-white/30" />
           </>
         )}
       </Carousel>
-      
+
       {bannerSettings.length > 1 && (
-        <div className="flex justify-center mt-4 space-x-2">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
           {bannerSettings.map((_, index) => (
             <button
               key={index}
-              className={`w-3 h-3 rounded-full transition-colors ${
-                index === currentIndex ? 'bg-gray-800' : 'bg-gray-400'
-              }`}
+              aria-label={`Go to banner ${index + 1}`}
+              className="w-2.5 h-2.5 rounded-full transition-colors"
+              style={{ backgroundColor: index === currentIndex ? '#F9DAA5' : 'rgba(255,255,255,0.5)' }}
               onClick={() => api?.scrollTo(index)}
             />
           ))}
