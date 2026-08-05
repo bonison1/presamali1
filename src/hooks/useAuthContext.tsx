@@ -9,16 +9,15 @@ export interface UserProfile {
   id: string;
   email: string | null;
   full_name: string | null;
-  role: 'admin' | 'user';
   created_at: string;
   updated_at: string;
-  // Address fields
   address_line_1: string | null;
   address_line_2: string | null;
   city: string | null;
   state: string | null;
   postal_code: string | null;
   phone: string | null;
+  role: string | null;
 }
 
 /**
@@ -65,6 +64,15 @@ export const useAuth = (): AuthContextType => {
 /**
  * Authentication provider component
  * Manages all authentication state and provides it to child components
+ *
+ * NOTE ON "HIDING" ROLE IN DEVTOOLS:
+ * Removing role/email from console.log calls (done below) stops it from
+ * showing up in the Console tab. It does NOT and cannot hide it from the
+ * Network tab or React DevTools' component/state inspector — the browser
+ * has to receive and hold this data to use it client-side. Treat any
+ * client-side isAdmin/isUser check as a UI convenience only. Real
+ * authorization must be enforced server-side (Supabase RLS policies,
+ * SECURITY DEFINER functions, or edge functions that re-check role).
  */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Core auth state
@@ -83,24 +91,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = async (userId: string): Promise<void> => {
     try {
       setProfileLoading(true);
-      console.log('Fetching profile for user:', userId);
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          id,
+          email,
+          full_name,
+          created_at,
+          updated_at,
+          address_line_1,
+          address_line_2,
+          city,
+          state,
+          postal_code,
+          phone,
+          role
+        `)
         .eq('id', userId)
         .single();
 
       if (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Error fetching profile');
         setProfile(null);
         return;
       }
 
-      console.log('Profile fetched successfully:', data);
       setProfile(data as UserProfile);
     } catch (error) {
-      console.error('Exception fetching profile:', error);
+      console.error('Exception fetching profile');
       setProfile(null);
     } finally {
       setProfileLoading(false);
@@ -131,7 +150,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const handleAuthChange = async (event: string, session: Session | null) => {
       if (!mounted) return;
 
-      console.log('🔄 Auth state changed:', event, session?.user?.email || 'No user');
+      console.log('🔄 Auth state changed:', event, session ? 'user present' : 'no user');
 
       // Update session and user state immediately (synchronous)
       setSession(session);
@@ -167,17 +186,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!mounted) return;
 
         if (error) {
-          console.error('❌ Error getting initial session:', error);
+          console.error('❌ Error getting initial session');
           setLoading(false);
           return;
         }
 
-        console.log('✅ Initial session retrieved:', session?.user?.email || 'No session');
+        console.log('✅ Initial session retrieved:', session ? 'session found' : 'no session');
 
         // Trigger auth change handler with initial session
         await handleAuthChange('INITIAL_SESSION', session);
       } catch (error) {
-        console.error('💥 Exception during auth initialization:', error);
+        console.error('💥 Exception during auth initialization');
         if (mounted) {
           setLoading(false);
         }
@@ -199,7 +218,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
    */
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('🔑 Attempting sign in for:', email);
+      console.log('🔑 Attempting sign in');
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -207,14 +226,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
-        console.error('❌ Sign in error:', error);
+        console.error('❌ Sign in error');
         return { error };
       }
 
-      console.log('✅ Sign in successful for:', data.user?.email);
+      console.log('✅ Sign in successful');
       return { error: null };
     } catch (error) {
-      console.error('💥 Sign in exception:', error);
+      console.error('💥 Sign in exception');
       return { error };
     }
   };
@@ -227,7 +246,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
    */
   const signUp = async (email: string, password: string, fullName?: string, phone?: string) => {
     try {
-      console.log('📝 Attempting sign up for:', email);
+      console.log('📝 Attempting sign up');
 
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -242,7 +261,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
-        console.error('❌ Sign up error:', error);
+        console.error('❌ Sign up error');
         return { error };
       }
 
@@ -259,12 +278,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           'to require OTP verification before login.'
         );
       } else if (otpSent) {
-        console.log(
-          '✅ Confirmation/OTP email queued at',
-          data.user?.confirmation_sent_at,
-          'for',
-          data.user?.email
-        );
+        console.log('✅ Confirmation/OTP email queued');
       } else {
         console.warn(
           '⚠️ Sign up succeeded but confirmation_sent_at is empty — no OTP email ' +
@@ -272,10 +286,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
       }
 
-      console.log('✅ Sign up successful for:', data.user?.email);
+      console.log('✅ Sign up successful');
       return { error: null, otpSent, autoConfirmed };
     } catch (error) {
-      console.error('💥 Sign up exception:', error);
+      console.error('💥 Sign up exception');
       return { error };
     }
   };
@@ -290,7 +304,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { error } = await supabase.auth.signOut();
 
       if (error) {
-        console.error('❌ Sign out error:', error);
+        console.error('❌ Sign out error');
       }
 
       // Clear all state immediately
@@ -307,7 +321,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         window.location.href = '/';
       }
     } catch (error) {
-      console.error('💥 Sign out exception:', error);
+      console.error('💥 Sign out exception');
     }
   };
 

@@ -1,7 +1,8 @@
 import { useState, type CSSProperties } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, Menu, X } from 'lucide-react';
+import { Search, ShoppingCart, Menu, X, UserCircle } from 'lucide-react';
 import { useCart } from '@/hooks/useCartContext';
+import { useAuth } from '@/hooks/useAuthContext';
 import CartSidebar from './CartSidebar';
 import ProfileDropdown from './ProfileDropdown';
 
@@ -14,20 +15,6 @@ const CORAL = "#E79F8A";
 const REED = "#F9DAA5";
 const CLAY = "#F1E4E0";
 
-const Logomark = ({
-  className = 'h-8 w-8',
-  style,
-}: {
-  className?: string;
-  style?: CSSProperties;
-}) => (
-  <svg viewBox="0 0 48 48" fill="none" className={className} style={style} aria-hidden="true">
-    <path d="M24 6c-9.4 0-17 7.6-17 17s7.6 17 17 17" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-    <path d="M24 6c9.4 0 17 7.6 17 17s-7.6 17-17 17" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" opacity="0.55" />
-    <circle cx="24" cy="17" r="3.6" fill="currentColor" />
-  </svg>
-);
-
 const navLinks = [
   { name: 'Home', path: '/' },
   { name: 'About', path: '/about' },
@@ -39,9 +26,11 @@ const navLinks = [
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { cartCount } = useCart();
+  const { isAuthenticated } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -62,7 +51,21 @@ const Header = () => {
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
-              <Logomark className="h-8 w-8 transition-transform duration-300 group-hover:scale-105" style={{ color: MULBERRY }} />
+              {!logoError ? (
+                <img
+                  src="/logo.jpg"
+                  alt="Presamali logo"
+                  onError={() => setLogoError(true)}
+                  className="h-10 w-10 object-contain rounded-full transition-transform duration-300 group-hover:scale-105"
+                />
+              ) : (
+                <div
+                  className="h-10 w-10 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0"
+                  style={{ backgroundColor: REED, color: MULBERRY }}
+                >
+                  P
+                </div>
+              )}
               <span
                 className="text-2xl tracking-[0.06em] uppercase"
                 style={{ fontFamily: HEADING_FONT, color: MULBERRY }}
@@ -99,7 +102,20 @@ const Header = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4" style={{ color: '#a0777d' }} />
               </div>
 
-              <ProfileDropdown />
+              {/* Auth: profile dropdown when logged in, login/signup icon when guest */}
+              {isAuthenticated ? (
+                <ProfileDropdown />
+              ) : (
+                <button
+                  onClick={() => navigate('/auth')}
+                  aria-label="Login or sign up"
+                  className="flex items-center gap-1.5 p-2 rounded-full transition-colors duration-200 hover:opacity-80"
+                  style={{ color: '#4a2c30' }}
+                >
+                  <UserCircle className="h-6 w-6" />
+                  <span className="hidden lg:inline text-sm font-medium">Login</span>
+                </button>
+              )}
 
               <button
                 onClick={() => setCartOpen(true)}
@@ -146,6 +162,16 @@ const Header = () => {
                   {link.name}
                 </Link>
               ))}
+              {!isAuthenticated && (
+                <Link
+                  to="/auth"
+                  className="block py-2 transition-colors duration-200 font-medium"
+                  style={{ color: '#4a2c30' }}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Login / Sign Up
+                </Link>
+              )}
             </div>
           </div>
         )}
