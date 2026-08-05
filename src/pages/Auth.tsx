@@ -233,13 +233,24 @@ const Auth = () => {
       }
 
       console.log('✅ Signup OTP verified', data?.user?.id);
+
+      // verifyOtp automatically creates a session — but we don't want to
+      // drop the user straight into the dashboard (that's what was racing
+      // with the profile fetch). Sign them back out immediately and send
+      // them to the login tab instead, so they log in fresh with their
+      // own credentials.
+      await supabase.auth.signOut();
+
       toast({
         title: "Account verified",
-        description: "Your account is ready. Welcome!",
+        description: "Your email is confirmed. Please sign in to continue.",
       });
 
-      // supabase.auth.verifyOtp establishes a session automatically,
-      // so the useEffect above will pick up isAuthenticated and redirect.
+      setPassword('');
+      setConfirmPassword('');
+      setSignupOtp('');
+      setSignupStep('form');
+      setActiveTab('login');
       setActionLoading(false);
     } catch (error: any) {
       console.error('💥 OTP verification exception:', error);
