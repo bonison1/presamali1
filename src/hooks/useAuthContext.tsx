@@ -29,21 +29,21 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: UserProfile | null;
-  
+
   // Loading states
   loading: boolean;
   profileLoading: boolean;
-  
+
   // Computed properties
   isAuthenticated: boolean;
   isAdmin: boolean;
   isUser: boolean;
-  
+
   // Auth methods
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, fullName?: string, phone?: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName?: string, phone?: string) => Promise<{ error: any; otpSent?: boolean; autoConfirmed?: boolean }>;
   signOut: () => Promise<void>;
-  
+
   // Utility methods
   refreshProfile: () => Promise<void>;
 }
@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  
+
   // Loading states
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setProfileLoading(true);
       console.log('Fetching profile for user:', userId);
-      
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -163,7 +163,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         console.log('🚀 Getting initial session');
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (!mounted) return;
 
         if (error) {
@@ -173,7 +173,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         console.log('✅ Initial session retrieved:', session?.user?.email || 'No session');
-        
+
         // Trigger auth change handler with initial session
         await handleAuthChange('INITIAL_SESSION', session);
       } catch (error) {
@@ -200,12 +200,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       console.log('🔑 Attempting sign in for:', email);
-      
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
+
       if (error) {
         console.error('❌ Sign in error:', error);
         return { error };
@@ -220,22 +220,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   /**
-   * Sign up with email, password, and optional full name
+   * Sign up with email, password, and optional full name.
+   * Also reports back whether Supabase actually queued a confirmation/OTP
+   * email, or whether the project auto-confirmed the user (no OTP step
+   * possible until "Confirm email" is enabled in Supabase Auth settings).
    */
   const signUp = async (email: string, password: string, fullName?: string, phone?: string) => {
     try {
       console.log('📝 Attempting sign up for:', email);
-      
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          full_name: fullName || '',
-          phone: phone || '',
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: fullName || '',
+            phone: phone || '',
+          },
         },
-      },
       });
 
       if (error) {
@@ -243,8 +246,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
+      // Diagnostics: figure out whether an OTP/confirmation email was
+      // actually sent, or whether Supabase logged the user straight in.
+      const autoConfirmed = !!data.session;
+      const otpSent = !!data.user?.confirmation_sent_at && !autoConfirmed;
+
+      if (autoConfirmed) {
+        console.warn(
+          '⚠️ Sign up returned an active session immediately — "Confirm email" ' +
+          'is OFF in Supabase Auth settings, so no OTP was required or sent. ' +
+          'Enable Authentication → Sign In / Providers → Email → "Confirm email" ' +
+          'to require OTP verification before login.'
+        );
+      } else if (otpSent) {
+        console.log(
+          '✅ Confirmation/OTP email queued at',
+          data.user?.confirmation_sent_at,
+          'for',
+          data.user?.email
+        );
+      } else {
+        console.warn(
+          '⚠️ Sign up succeeded but confirmation_sent_at is empty — no OTP email ' +
+          'appears to have been queued. Check Supabase → Auth Logs and your SMTP settings.'
+        );
+      }
+
       console.log('✅ Sign up successful for:', data.user?.email);
-      return { error: null };
+      return { error: null, otpSent, autoConfirmed };
     } catch (error) {
       console.error('💥 Sign up exception:', error);
       return { error };
@@ -257,9 +286,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async (): Promise<void> => {
     try {
       console.log('🚪 Signing out user');
-      
+
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
         console.error('❌ Sign out error:', error);
       }
@@ -270,9 +299,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setProfile(null);
       setLoading(false);
       setProfileLoading(false);
-      
+
       console.log('✅ User signed out successfully');
-      
+
       // Navigate to home page after successful sign out
       if (typeof window !== 'undefined') {
         window.location.href = '/';
@@ -294,12 +323,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     profile,
     loading,
     profileLoading,
-    
+
     // Computed
     isAuthenticated,
     isAdmin,
     isUser,
-    
+
     // Methods
     signIn,
     signUp,
