@@ -30,6 +30,15 @@ interface Product {
   stock_quantity: number | null;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  image_url: string | null;
+  is_active: boolean;
+  sort_order: number | null;
+}
+
 interface GroupedProducts {
   [category: string]: Product[];
 }
@@ -37,9 +46,11 @@ interface GroupedProducts {
 /* ================= SHOP ================= */
 const Shop = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [groupedProducts, setGroupedProducts] = useState<GroupedProducts>({});
   const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -57,12 +68,35 @@ const Shop = () => {
   }, [location.search]);
 
   useEffect(() => {
+    fetchCategories();
     fetchProducts();
   }, []);
 
   useEffect(() => {
     filterProducts();
-  }, [products, searchTerm, selectedCategory]);
+  }, [products, categories, searchTerm, selectedCategory]);
+
+  /* ---------- Fetch Categories ---------- */
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to load categories.",
+        variant: "destructive"
+      });
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   /* ---------- Fetch Products ---------- */
   const fetchProducts = async () => {
@@ -86,6 +120,13 @@ const Shop = () => {
     }
   };
 
+  /* ---------- Helpers ---------- */
+  const getCategoryLabel = (slug: string | null) => {
+    if (!slug) return 'Others';
+    const match = categories.find(c => c.slug === slug);
+    return match ? match.name : 'Others';
+  };
+
   /* ---------- Filter Products ---------- */
   const filterProducts = () => {
     let filtered = products;
@@ -106,15 +147,7 @@ const Shop = () => {
     setFilteredProducts(filtered);
 
     const grouped = filtered.reduce((acc: any, product) => {
-      const cat = product.category || 'Others';
-      const name =
-        cat === 'chicken'
-          ? 'Chicken Products'
-          : cat === 'red_meat'
-          ? 'Red Meat Products'
-          : cat === 'chilli_condiments'
-          ? 'Chilli Condiments'
-          : 'Others';
+      const name = getCategoryLabel(product.category);
 
       if (!acc[name]) acc[name] = [];
       acc[name].push(product);
@@ -233,36 +266,37 @@ const Shop = () => {
         <div className="max-w-7xl mx-auto px-6">
           <h2 className="text-xl font-bold mb-4">Shop by Categories</h2>
 
-          <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:grid-cols-8 md:gap-4">
-            <CategoryTile
-              label="All"
-              value="all"
-              img="/all.png"
-              selected={selectedCategory === 'all'}
-              onClick={() => setSelectedCategory('all')}
-            />
-            <CategoryTile
-              label="Chicken Products"
-              value="chicken"
-              img="/chicken.jpg"
-              selected={selectedCategory === 'chicken'}
-              onClick={() => setSelectedCategory('chicken')}
-            />
-            <CategoryTile
-              label="Red Meat Products"
-              value="red_meat"
-              img="/red.jpg"
-              selected={selectedCategory === 'red_meat'}
-              onClick={() => setSelectedCategory('red_meat')}
-            />
-            <CategoryTile
-              label="Chilli Condiments"
-              value="chilli_condiments"
-              img="/chilli.jpg"
-              selected={selectedCategory === 'chilli_condiments'}
-              onClick={() => setSelectedCategory('chilli_condiments')}
-            />
-          </div>
+          {categoriesLoading ? (
+            <div className="flex gap-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-14 h-14 rounded-xl bg-gray-100 animate-pulse"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:grid-cols-8 md:gap-4">
+              <CategoryTile
+                label="All"
+                value="all"
+                img="/all.png"
+                selected={selectedCategory === 'all'}
+                onClick={() => setSelectedCategory('all')}
+              />
+
+              {categories.map((cat) => (
+                <CategoryTile
+                  key={cat.id}
+                  label={cat.name}
+                  value={cat.slug}
+                  img={cat.image_url || "/placeholder.svg"}
+                  selected={selectedCategory === cat.slug}
+                  onClick={() => setSelectedCategory(cat.slug)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -291,11 +325,11 @@ const Shop = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="chicken">Chicken</SelectItem>
-                  <SelectItem value="red_meat">Red Meat</SelectItem>
-                  <SelectItem value="chilli_condiments">
-                    Chilli Condiments
-                  </SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.slug}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

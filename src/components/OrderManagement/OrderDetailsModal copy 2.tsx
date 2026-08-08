@@ -63,11 +63,11 @@ const OrderDetailsModal = ({ order, onClose }: Props) => {
     /* ---------- HEADER ---------- */
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
-    doc.text('Moms by Goo Goo Foods', 14, 18);
+    doc.text('Presamali', 14, 18);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text('momsbygoogoofoods@gmail.com • (+91) 60098 09060', 14, 24);
+    doc.text('presamli@gmail.com • (+91) 60098 09060', 14, 24);
     doc.text(
       'Address: Singjamei Chingamakha, Imphal, Manipur-795001',
       14,

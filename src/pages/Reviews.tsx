@@ -112,7 +112,7 @@ const Reviews = () => {
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-black mb-4">Write a Review</h2>
               <p className="text-gray-600 max-w-2xl mx-auto">
-                Share your experience with Googoo Foods
+                Share your experience with Presamali products. Your feedback is valuable to us and helps other customers make informed decisions.
               </p>
             </div>
 
