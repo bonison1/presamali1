@@ -316,6 +316,8 @@ const Auth = () => {
     }
   };
 
+  // Step 1 of reset: cross-check email + phone against our own records,
+  // then let Supabase's built-in mailer send the 6-digit recovery OTP.
   const handleRequestReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
@@ -329,13 +331,13 @@ const Auth = () => {
 
     try {
       const { data, error: rpcError } = await supabase
-        .rpc('request_password_reset', {
+        .rpc('verify_reset_identity', {
           user_email: email.trim(),
           user_phone: phone.trim()
         });
 
       if (rpcError) {
-        console.error('Reset request RPC error:', rpcError);
+        console.error('Reset identity check error:', rpcError);
         setError('Failed to process reset request');
         setActionLoading(false);
         return;
@@ -349,10 +351,20 @@ const Auth = () => {
         return;
       }
 
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email.trim()
+      );
+
+      if (resetError) {
+        console.error('resetPasswordForEmail error:', resetError);
+        setError(resetError.message || 'Failed to send reset code');
+        setActionLoading(false);
+        return;
+      }
+
       toast({
-        title: "Reset code generated",
-        description: `Your reset code is: ${result.reset_code}. It expires in 15 minutes.`,
-        duration: 10000,
+        title: "Check your email",
+        description: "We sent a 6-digit reset code to your email.",
       });
 
       setResetStep('verify');
@@ -364,6 +376,8 @@ const Auth = () => {
     }
   };
 
+  // Step 2 of reset: verify the OTP (creates a temporary recovery session),
+  // then update the password while that session is active.
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
@@ -382,27 +396,31 @@ const Auth = () => {
     }
 
     try {
-      const { data, error: functionError } = await supabase.functions.invoke('reset-password', {
-        body: {
-          email: email.trim(),
-          phone: phone.trim(),
-          code: resetCode.trim(),
-          newPassword: newPassword
-        }
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: resetCode.trim(),
+        type: 'recovery',
       });
 
-      if (functionError) {
-        console.error('Reset password function error:', functionError);
-        setError('Failed to reset password. Please try again.');
+      if (verifyError) {
+        console.error('Reset OTP verification failed:', verifyError);
+        setError(verifyError.message || 'Invalid or expired code');
         setActionLoading(false);
         return;
       }
 
-      if (data?.error) {
-        setError(data.error);
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        console.error('Password update error:', updateError);
+        setError(updateError.message || 'Failed to reset password');
         setActionLoading(false);
         return;
       }
+
+      await supabase.auth.signOut();
 
       toast({
         title: "Password reset successful",

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Card, CardContent } from '@/components/ui/card';
-import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
 interface BannerSetting {
@@ -112,38 +111,11 @@ const BannerCarousel = () => {
             <CarouselItem key={banner.id} className="h-full">
               <Card className="border-0 shadow-none overflow-hidden h-full">
                 <CardContent className="p-0 relative h-full">
-                  <div className="relative h-full">
-                    <img
-                      src={banner.image_url}
-                      alt={banner.title}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-[#2B1418]/55" />
-                    <div className="absolute inset-0 flex items-center justify-center text-center text-white">
-                      <div className="space-y-4 max-w-4xl mx-auto px-4">
-                        <h1 className="text-3xl md:text-5xl font-bold">
-                          {banner.title}
-                        </h1>
-                        <h2 className="text-lg md:text-2xl font-light text-[#F1E4E0]">
-                          {banner.subtitle}
-                        </h2>
-                        <div className="space-x-4 pt-2">
-                          <Link
-                            to={banner.button_link}
-                            className="bg-white text-[#7D2F38] px-6 py-2.5 rounded-full font-semibold hover:bg-[#F9DAA5] transition-colors inline-block"
-                          >
-                            {banner.button_text}
-                          </Link>
-                          <Link
-                            to={banner.secondary_button_link}
-                            className="border-2 border-white text-white px-6 py-2.5 rounded-full font-semibold hover:bg-white hover:text-[#7D2F38] transition-colors inline-block"
-                          >
-                            {banner.secondary_button_text}
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <img
+                    src={banner.image_url}
+                    alt={banner.title}
+                    className="w-full h-full object-cover"
+                  />
                 </CardContent>
               </Card>
             </CarouselItem>
