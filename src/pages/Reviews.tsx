@@ -32,14 +32,13 @@ const Reviews = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-black to-gray-800 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">Customer Reviews</h1>
-          <p className="text-xl md:text-2xl max-w-3xl mx-auto">
+      <section className="bg-[#2b1115] text-white py-12 md:py-16 px-4 text-center">
+  <h1 className="text-4xl md:text-5xl font-bold mb-6">Customer Reviews</h1>
+  <p className="text-xl md:text-2xl max-w-3xl mx-auto">
             Real feedback from our valued customers across India
           </p>
-        </div>
-      </section>
+</section>
+      
 
       {/* Tab Navigation */}
       <section className="py-8 bg-white border-b">

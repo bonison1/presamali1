@@ -28,14 +28,15 @@ const Contact = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="bg-black text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">Contact Us</h1>
+
+      <section className="bg-[#2b1115] text-white py-12 md:py-16 px-4 text-center">
+  <h1 className="text-4xl md:text-5xl font-bold mb-6">Contact Us</h1>
           <p className="text-xl md:text-2xl max-w-3xl mx-auto">
             We'd love to hear from you. Get in touch with any questions or feedback.
           </p>
-        </div>
-      </section>
+</section>
+
+      
 
       {/* Contact Form & Info */}
       <section className="py-16 bg-white">

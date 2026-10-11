@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Image, Edit, Plus, Trash, Move } from 'lucide-react';
+import { Save, Image, Edit, Plus, Trash } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
 
 interface BannerSetting {
@@ -37,7 +37,6 @@ const BannerManagement = () => {
   const [saving, setSaving] = useState(false);
   const [editingBanner, setEditingBanner] = useState<BannerSetting | null>(null);
   const [editingImages, setEditingImages] = useState<string[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     fetchBanners();
@@ -53,9 +52,9 @@ const BannerManagement = () => {
       if (error) {
         console.error('Error fetching banners:', error);
         toast({
-          title: "Error",
-          description: "Failed to fetch banners",
-          variant: "destructive",
+          title: 'Error',
+          description: 'Failed to fetch banners',
+          variant: 'destructive',
         });
         return;
       }
@@ -64,9 +63,9 @@ const BannerManagement = () => {
     } catch (error) {
       console.error('Error fetching banners:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch banners",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to fetch banners',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -76,11 +75,15 @@ const BannerManagement = () => {
   const handleEdit = (banner: BannerSetting) => {
     setEditingBanner({
       ...banner,
-      banner_height: banner.banner_height || 350,
-      banner_width: banner.banner_width || 100,
+      button_text: banner.button_text || '',
+      button_link: banner.button_link || '',
+      secondary_button_text: banner.secondary_button_text || '',
+      secondary_button_link: banner.secondary_button_link || '',
+      banner_height: banner.banner_height ?? 350,
+      banner_width: banner.banner_width ?? 100,
       text_position: banner.text_position || 'center',
       image_position: banner.image_position || 'center',
-      overlay_opacity: banner.overlay_opacity || 60,
+      overlay_opacity: banner.overlay_opacity ?? 60,
     });
     setEditingImages(banner.image_url ? [banner.image_url] : []);
   };
@@ -92,10 +95,11 @@ const BannerManagement = () => {
         title: banner.title,
         subtitle: banner.subtitle,
         image_url: editingImages.length > 0 ? editingImages[0] : banner.image_url,
-        button_text: banner.button_text,
-        button_link: banner.button_link,
-        secondary_button_text: banner.secondary_button_text,
-        secondary_button_link: banner.secondary_button_link,
+        // Empty text = button hidden on the site
+        button_text: (banner.button_text || '').trim(),
+        button_link: (banner.button_link || '').trim(),
+        secondary_button_text: (banner.secondary_button_text || '').trim(),
+        secondary_button_link: (banner.secondary_button_link || '').trim(),
         is_active: banner.is_active,
         is_published: banner.is_published,
         banner_height: banner.banner_height,
@@ -115,20 +119,19 @@ const BannerManagement = () => {
         throw error;
       }
 
-      // Update local state with the saved banner
-      setBanners(banners.map(b => b.id === banner.id ? { ...b, ...updatedBanner } : b));
+      setBanners(banners.map((b) => (b.id === banner.id ? { ...b, ...updatedBanner } : b)));
       setEditingBanner(null);
       setEditingImages([]);
       toast({
-        title: "Success",
-        description: "Banner updated successfully",
+        title: 'Success',
+        description: 'Banner updated successfully',
       });
     } catch (error: any) {
       console.error('Error updating banner:', error);
       toast({
-        title: "Error",
-        description: "Failed to update banner",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to update banner',
+        variant: 'destructive',
       });
     } finally {
       setSaving(false);
@@ -138,15 +141,16 @@ const BannerManagement = () => {
   const handleCreate = async () => {
     setSaving(true);
     try {
-      const maxOrder = Math.max(...banners.map(b => b.display_order), 0);
+      const maxOrder = Math.max(...banners.map((b) => b.display_order), 0);
       const newBanner = {
         title: 'New Banner',
         subtitle: 'Banner Subtitle',
         image_url: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=1920&h=600&fit=crop',
-        button_text: 'Shop Now',
-        button_link: '/shop',
-        secondary_button_text: 'Learn More',
-        secondary_button_link: '/about',
+        // Buttons are optional: start with none
+        button_text: '',
+        button_link: '',
+        secondary_button_text: '',
+        secondary_button_link: '',
         is_active: true,
         is_published: true,
         display_order: maxOrder + 1,
@@ -154,7 +158,7 @@ const BannerManagement = () => {
         banner_width: 100,
         text_position: 'center',
         image_position: 'center',
-        overlay_opacity: 60,
+        overlay_opacity: 40,
       };
 
       const { data, error } = await supabase
@@ -168,17 +172,16 @@ const BannerManagement = () => {
       }
 
       setBanners([...banners, data]);
-      setIsCreating(false);
       toast({
-        title: "Success",
-        description: "Banner created successfully",
+        title: 'Success',
+        description: 'Banner created successfully',
       });
     } catch (error: any) {
       console.error('Error creating banner:', error);
       toast({
-        title: "Error",
-        description: "Failed to create banner",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to create banner',
+        variant: 'destructive',
       });
     } finally {
       setSaving(false);
@@ -191,79 +194,61 @@ const BannerManagement = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('banner_settings')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('banner_settings').delete().eq('id', id);
 
       if (error) {
         throw error;
       }
 
-      setBanners(banners.filter(b => b.id !== id));
+      setBanners(banners.filter((b) => b.id !== id));
       toast({
-        title: "Success",
-        description: "Banner deleted successfully",
+        title: 'Success',
+        description: 'Banner deleted successfully',
       });
     } catch (error: any) {
       console.error('Error deleting banner:', error);
       toast({
-        title: "Error",
-        description: "Failed to delete banner",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to delete banner',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const swapOrder = async (a: BannerSetting, b: BannerSetting) => {
+    try {
+      const results = await Promise.all([
+        supabase.from('banner_settings').update({ display_order: b.display_order }).eq('id', a.id),
+        supabase.from('banner_settings').update({ display_order: a.display_order }).eq('id', b.id),
+      ]);
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw failed.error;
+      await fetchBanners();
+    } catch (error) {
+      console.error('Error reordering banners:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to reorder banners',
+        variant: 'destructive',
       });
     }
   };
 
   const moveUp = async (banner: BannerSetting) => {
-    const currentIndex = banners.findIndex(b => b.id === banner.id);
+    const currentIndex = banners.findIndex((b) => b.id === banner.id);
     if (currentIndex <= 0) return;
-
-    const previousBanner = banners[currentIndex - 1];
-    const updates = [
-      { id: banner.id, display_order: previousBanner.display_order },
-      { id: previousBanner.id, display_order: banner.display_order }
-    ];
-
-    try {
-      for (const update of updates) {
-        await supabase
-          .from('banner_settings')
-          .update({ display_order: update.display_order })
-          .eq('id', update.id);
-      }
-      await fetchBanners();
-    } catch (error) {
-      console.error('Error reordering banners:', error);
-    }
+    await swapOrder(banner, banners[currentIndex - 1]);
   };
 
   const moveDown = async (banner: BannerSetting) => {
-    const currentIndex = banners.findIndex(b => b.id === banner.id);
+    const currentIndex = banners.findIndex((b) => b.id === banner.id);
     if (currentIndex >= banners.length - 1) return;
-
-    const nextBanner = banners[currentIndex + 1];
-    const updates = [
-      { id: banner.id, display_order: nextBanner.display_order },
-      { id: nextBanner.id, display_order: banner.display_order }
-    ];
-
-    try {
-      for (const update of updates) {
-        await supabase
-          .from('banner_settings')
-          .update({ display_order: update.display_order })
-          .eq('id', update.id);
-      }
-      await fetchBanners();
-    } catch (error) {
-      console.error('Error reordering banners:', error);
-    }
+    await swapOrder(banner, banners[currentIndex + 1]);
   };
 
   const handleInputChange = (field: keyof BannerSetting, value: string | boolean | number) => {
     if (!editingBanner) return;
-    
+
     setEditingBanner({
       ...editingBanner,
       [field]: value,
@@ -272,7 +257,7 @@ const BannerManagement = () => {
 
   const getPreviewStyles = () => {
     if (!editingBanner) return {};
-    
+
     return {
       height: `${editingBanner.banner_height}px`,
       width: `${editingBanner.banner_width}%`,
@@ -284,21 +269,21 @@ const BannerManagement = () => {
   };
 
   const getTextPositionStyles = () => {
-    if (!editingBanner) return {};
-    
-    const positions = {
+    if (!editingBanner) return '';
+
+    const positions: Record<string, string> = {
       'top-left': 'items-start justify-start',
       'top-center': 'items-start justify-center',
       'top-right': 'items-start justify-end',
       'center-left': 'items-center justify-start',
-      'center': 'items-center justify-center',
+      center: 'items-center justify-center',
       'center-right': 'items-center justify-end',
       'bottom-left': 'items-end justify-start',
       'bottom-center': 'items-end justify-center',
       'bottom-right': 'items-end justify-end',
     };
-    
-    return positions[editingBanner.text_position as keyof typeof positions] || positions.center;
+
+    return positions[editingBanner.text_position || 'center'] || positions.center;
   };
 
   if (loading) {
@@ -309,6 +294,9 @@ const BannerManagement = () => {
     );
   }
 
+  const hasPrimary = !!editingBanner?.button_text?.trim();
+  const hasSecondary = !!editingBanner?.secondary_button_text?.trim();
+
   return (
     <div className="space-y-6">
       <Card>
@@ -318,9 +306,7 @@ const BannerManagement = () => {
               <Image className="h-5 w-5" />
               <span>Banner Management</span>
             </CardTitle>
-            <CardDescription>
-              Manage multiple banners that appear on the homepage
-            </CardDescription>
+            <CardDescription>Manage multiple banners that appear on the homepage</CardDescription>
           </div>
           <Button onClick={handleCreate} disabled={saving}>
             <Plus className="h-4 w-4 mr-2" />
@@ -351,18 +337,10 @@ const BannerManagement = () => {
                 >
                   ↓
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(banner)}
-                >
+                <Button variant="outline" size="sm" onClick={() => handleEdit(banner)}>
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(banner.id)}
-                >
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(banner.id)}>
                   <Trash className="h-4 w-4" />
                 </Button>
               </div>
@@ -370,11 +348,7 @@ const BannerManagement = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="aspect-video w-full bg-gray-100 rounded-lg overflow-hidden">
-              <img
-                src={banner.image_url}
-                alt={banner.title}
-                className="w-full h-full object-cover"
-              />
+              <img src={banner.image_url} alt={banner.title} className="w-full h-full object-cover" />
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -388,6 +362,13 @@ const BannerManagement = () => {
               </div>
               <div>
                 <strong>Published:</strong> {banner.is_published ? 'Yes' : 'No'}
+              </div>
+              <div>
+                <strong>Primary button:</strong> {banner.button_text?.trim() ? banner.button_text : 'Hidden'}
+              </div>
+              <div>
+                <strong>Secondary button:</strong>{' '}
+                {banner.secondary_button_text?.trim() ? banner.secondary_button_text : 'Hidden'}
               </div>
             </div>
           </CardContent>
@@ -407,30 +388,31 @@ const BannerManagement = () => {
                 <div className="space-y-4">
                   <Label className="text-lg font-semibold">Live Preview</Label>
                   <div className="border-2 border-dashed border-gray-300 p-4 rounded-lg bg-gray-50">
-                    <div
-                      className="relative rounded-lg overflow-hidden mx-auto"
-                      style={getPreviewStyles()}
-                    >
-                      <div 
+                    <div className="relative rounded-lg overflow-hidden mx-auto" style={getPreviewStyles()}>
+                      <div
                         className="absolute inset-0 bg-black"
-                        style={{ opacity: (editingBanner.overlay_opacity || 60) / 100 }}
+                        style={{ opacity: (editingBanner.overlay_opacity ?? 60) / 100 }}
                       />
                       <div className={`absolute inset-0 flex text-white p-8 ${getTextPositionStyles()}`}>
                         <div className="text-center space-y-4 max-w-4xl">
-                          <h1 className="text-2xl md:text-4xl font-bold">
-                            {editingBanner.title}
-                          </h1>
+                          <h1 className="text-2xl md:text-4xl font-bold">{editingBanner.title}</h1>
                           <h2 className="text-lg md:text-2xl font-light text-gray-300">
                             {editingBanner.subtitle}
                           </h2>
-                          <div className="space-x-4 pt-4">
-                            <span className="bg-white text-black px-6 py-2 rounded-lg font-semibold inline-block">
-                              {editingBanner.button_text}
-                            </span>
-                            <span className="border-2 border-white text-white px-6 py-2 rounded-lg font-semibold inline-block">
-                              {editingBanner.secondary_button_text}
-                            </span>
-                          </div>
+                          {(hasPrimary || hasSecondary) && (
+                            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+                              {hasPrimary && (
+                                <span className="bg-white text-black px-6 py-2 rounded-lg font-semibold inline-block">
+                                  {editingBanner.button_text}
+                                </span>
+                              )}
+                              {hasSecondary && (
+                                <span className="border-2 border-white text-white px-6 py-2 rounded-lg font-semibold inline-block">
+                                  {editingBanner.secondary_button_text}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -460,7 +442,7 @@ const BannerManagement = () => {
                           min={200}
                           max={600}
                           step={10}
-                          value={[editingBanner.banner_height || 350]}
+                          value={[editingBanner.banner_height ?? 350]}
                           onValueChange={(value) => handleInputChange('banner_height', value[0])}
                           className="w-full"
                         />
@@ -472,7 +454,7 @@ const BannerManagement = () => {
                           min={50}
                           max={100}
                           step={5}
-                          value={[editingBanner.banner_width || 100]}
+                          value={[editingBanner.banner_width ?? 100]}
                           onValueChange={(value) => handleInputChange('banner_width', value[0])}
                           className="w-full"
                         />
@@ -539,7 +521,7 @@ const BannerManagement = () => {
                     min={0}
                     max={100}
                     step={5}
-                    value={[editingBanner.overlay_opacity || 60]}
+                    value={[editingBanner.overlay_opacity ?? 60]}
                     onValueChange={(value) => handleInputChange('overlay_opacity', value[0])}
                     className="w-full"
                   />
@@ -565,12 +547,20 @@ const BannerManagement = () => {
                   </div>
                 </div>
 
-                {/* Button Content */}
+                {/* Button Content (optional) */}
+                <div className="space-y-1">
+                  <Label className="text-lg font-semibold">Buttons (optional)</Label>
+                  <p className="text-sm text-gray-500">
+                    Leave a button's text empty to hide it. Leave both empty for a banner with no buttons.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="button-text">Primary Button Text</Label>
                     <Input
                       id="button-text"
+                      placeholder="Empty = hidden"
                       value={editingBanner.button_text}
                       onChange={(e) => handleInputChange('button_text', e.target.value)}
                     />
@@ -579,7 +569,9 @@ const BannerManagement = () => {
                     <Label htmlFor="button-link">Primary Button Link</Label>
                     <Input
                       id="button-link"
+                      placeholder="/shop"
                       value={editingBanner.button_link}
+                      disabled={!hasPrimary}
                       onChange={(e) => handleInputChange('button_link', e.target.value)}
                     />
                   </div>
@@ -590,6 +582,7 @@ const BannerManagement = () => {
                     <Label htmlFor="secondary-button-text">Secondary Button Text</Label>
                     <Input
                       id="secondary-button-text"
+                      placeholder="Empty = hidden"
                       value={editingBanner.secondary_button_text}
                       onChange={(e) => handleInputChange('secondary_button_text', e.target.value)}
                     />
@@ -598,7 +591,9 @@ const BannerManagement = () => {
                     <Label htmlFor="secondary-button-link">Secondary Button Link</Label>
                     <Input
                       id="secondary-button-link"
+                      placeholder="/about"
                       value={editingBanner.secondary_button_link}
+                      disabled={!hasSecondary}
                       onChange={(e) => handleInputChange('secondary_button_link', e.target.value)}
                     />
                   </div>

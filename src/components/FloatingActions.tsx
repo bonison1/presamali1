@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { ShoppingCart } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ShoppingBag } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import CartSidebar from './CartSidebar';
 import { useCart } from '@/hooks/useCartContext';
@@ -18,32 +17,30 @@ const FloatingActions = () => {
 
       {/* Floating WhatsApp Button */}
       <a
-        href="https://wa.link/vuxv1f"
+        href="https://wa.link/"
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat with us on WhatsApp"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-[#F9DAA5] bg-[#7D2F38] text-[#F9DAA5] shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition hover:scale-105 hover:bg-[#F9DAA5] hover:text-[#3a1c20]"
       >
-        <Button
-          className="fixed bottom-6 right-6 z-40 rounded-full h-14 w-14 bg-[#7D2F38] text-white hover:bg-[#5e232a] shadow-lg flex items-center justify-center"
-        >
-          <WhatsAppIcon className="h-8 w-8" />
-        </Button>
+        <WhatsAppIcon className="h-7 w-7" />
       </a>
 
       {/* Floating Cart Button */}
-      <Button
+      <button
+        type="button"
         onClick={() => setCartOpen(true)}
         aria-label="Open cart"
-        className="fixed bottom-24 right-6 z-40 rounded-full h-14 w-14 bg-[#7D2F38] text-white hover:bg-[#5e232a] shadow-lg flex items-center justify-center"
+        className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-[#3a1c20] bg-[#F9DAA5] text-[#3a1c20] shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition hover:scale-105"
       >
-        <ShoppingCart className="h-6 w-6" />
+        <ShoppingBag className="h-6 w-6" />
 
         {cartCount > 0 && (
-          <span className="absolute -top-2 -right-2 bg-[#F9DAA5] text-[#7D2F38] text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+          <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#7D2F38] px-1 text-xs font-bold text-[#F9DAA5] ring-2 ring-[#F9DAA5]">
             {cartCount}
           </span>
         )}
-      </Button>
+      </button>
     </>
   );
 };

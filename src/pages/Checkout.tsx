@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, CreditCard, Truck, User, Mail } from 'lucide-react';
+import { ArrowLeft, CreditCard, Truck, User, Mail, Minus, Plus, Trash2 } from 'lucide-react';
 
 interface UserProfile {
   full_name?: string;
@@ -37,8 +37,14 @@ interface GuestCheckoutItem {
 
 const Checkout = () => {
   const { user, isAuthenticated } = useAuth();
-  // const { cartItems, getTotalAmount, clearCart } = useCart();
-  const { cartItems, getTotalAmount, clearCart, addToCart } = useCart();
+  const {
+    cartItems,
+    getTotalAmount,
+    clearCart,
+    addToCart,
+    updateCartItemQuantity,
+    removeFromCart
+  } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,14 +59,18 @@ const Checkout = () => {
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
   const [isUploadingScreenshot, setIsUploadingScreenshot] = useState(false);
   const [bestSellers, setBestSellers] = useState<any[]>([]);
-
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
 
   // Guest checkout data from navigation state
   const guestCheckoutData = location.state as { guestCheckout?: boolean; product?: any; quantity?: number } | null;
   const isGuestCheckout = guestCheckoutData?.guestCheckout;
+
+  // location.state is read-only, so keep the guest quantity in local state
+  const [guestQuantity, setGuestQuantity] = useState<number>(guestCheckoutData?.quantity || 1);
+
   const guestItem: GuestCheckoutItem | null = guestCheckoutData?.product ? {
     product: guestCheckoutData.product,
-    quantity: guestCheckoutData.quantity || 1
+    quantity: guestQuantity
   } : null;
 
   const [formData, setFormData] = useState({
@@ -73,39 +83,87 @@ const Checkout = () => {
     postal_code: '',
     phone: ''
   });
-/* ================= PRICE & LOCATION CALC ================= */
 
-const isManipurPincode = formData.postal_code.startsWith('795');
+  /* ================= PRICE & LOCATION CALC ================= */
 
-const deliveryCharge = isManipurPincode ? 80 : 0;
-const handlingFee = 0;
+  const isManipurPincode = formData.postal_code.startsWith('795');
 
-const rawTotal = isGuestCheckout && guestItem
-  ? guestItem.product.price * guestItem.quantity
-  : getTotalAmount();
+  const deliveryCharge = isManipurPincode ? 80 : 0;
+  const handlingFee = 0;
 
-const discount = isManipurPincode ? Math.round(rawTotal * 0.10) : 0;
-const finalTotal = rawTotal - discount + deliveryCharge + handlingFee;
+  const rawTotal = isGuestCheckout && guestItem
+    ? guestItem.product.price * guestItem.quantity
+    : getTotalAmount();
 
-const MIN_OUTSIDE_MANIPUR_ORDER = 300;
+  const discount = isManipurPincode ? Math.round(rawTotal * 0.10) : 0;
+  const finalTotal = rawTotal - discount + deliveryCharge + handlingFee;
 
-const isBelowMinOutsideManipur =
-  !isManipurPincode && rawTotal < MIN_OUTSIDE_MANIPUR_ORDER;
+  const MIN_OUTSIDE_MANIPUR_ORDER = 300;
 
+  const isBelowMinOutsideManipur =
+    !isManipurPincode && rawTotal < MIN_OUTSIDE_MANIPUR_ORDER;
 
-useEffect(() => {
-  if (!isBelowMinOutsideManipur) return;
+  useEffect(() => {
+    if (!isBelowMinOutsideManipur) return;
 
-  supabase
-    .from('products')
-    .select('id, name, price, offer_price, image_url')
-    .eq('is_active', true)
-    .eq('featured', true)
-    .limit(4)
-    .then(({ data }) => {
-      setBestSellers(data || []);
-    });
-}, [isBelowMinOutsideManipur]);
+    supabase
+      .from('products')
+      .select('id, name, price, offer_price, image_url')
+      .eq('is_active', true)
+      .eq('featured', true)
+      .limit(4)
+      .then(({ data }) => {
+        setBestSellers(data || []);
+      });
+  }, [isBelowMinOutsideManipur]);
+
+  /* ================= RELATED PRODUCTS ================= */
+
+  // Re-run whenever the set of products in the cart changes
+  const cartProductKey = cartItems.map(item => item.product_id).sort().join(',');
+
+  useEffect(() => {
+    // Guest "Buy Now" checkout has a single fixed item, so skip suggestions there
+    if (isGuestCheckout) return;
+
+    const loadRelatedProducts = async () => {
+      const inCartIds = new Set(cartProductKey ? cartProductKey.split(',') : []);
+      if (inCartIds.size === 0) {
+        setRelatedProducts([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .limit(50);
+
+      if (error || !data) {
+        console.error('Error fetching related products:', error);
+        return;
+      }
+
+      // Categories of the items already in the cart (if products have a category_id)
+      const cartCategories = new Set(
+        data
+          .filter((p: any) => inCartIds.has(p.id) && p.category_id)
+          .map((p: any) => p.category_id)
+      );
+
+      const candidates = data.filter((p: any) => !inCartIds.has(p.id));
+
+      // Same-category products first, then featured, then the rest
+      const score = (p: any) =>
+        (cartCategories.has(p.category_id) ? 2 : 0) + (p.featured ? 1 : 0);
+
+      candidates.sort((a: any, b: any) => score(b) - score(a));
+
+      setRelatedProducts(candidates.slice(0, 4));
+    };
+
+    loadRelatedProducts();
+  }, [cartProductKey, isGuestCheckout]);
 
   useEffect(() => {
     const initializeCheckout = async () => {
@@ -169,7 +227,6 @@ useEffect(() => {
     initializeCheckout();
   }, [isGuestCheckout, guestItem, isAuthenticated, cartItems.length, navigate, toast, checkoutInitialized]);
 
-
   useEffect(() => {
     // If authenticated, fetch user profile
     if (isAuthenticated && user && !profile.full_name) {
@@ -213,20 +270,59 @@ useEffect(() => {
     }
   };
 
-
-
   useEffect(() => {
     if (formData.postal_code && !isManipurPincode && paymentMethod === 'cod') {
       setPaymentMethod('online');
     }
   }, [formData.postal_code]);
 
-
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  /* ================= QUANTITY & REMOVE ================= */
+
+  const handleQuantityChange = async (productId: string, newQty: number) => {
+    if (newQty < 1) return;
+
+    // Guest "Buy Now" item lives in local state
+    if (isGuestCheckout && guestItem) {
+      setGuestQuantity(newQty);
+      return;
+    }
+
+    // The cart hook updates items by the cart row's id (cart_items.id or guest_N), not product_id
+    const cartItem = cartItems.find(item => item.product_id === productId);
+    if (!cartItem) return;
+
+    await updateCartItemQuantity(cartItem.id, newQty);
+  };
+
+  const handleRemoveItem = async (productId: string) => {
+    // Guest "Buy Now" has only one item, so removing it ends checkout
+    if (isGuestCheckout && guestItem) {
+      navigate('/shop');
+      return;
+    }
+
+    // removeFromCart expects the cart row's id, not product_id
+    const cartItem = cartItems.find(item => item.product_id === productId);
+    if (!cartItem) return;
+
+    const wasLastItem = cartItems.length <= 1;
+
+    await removeFromCart(cartItem.id);
+
+    if (wasLastItem) {
+      toast({
+        title: "Cart is empty",
+        description: "Add items to your cart before checkout",
+      });
+      navigate('/shop');
+    }
   };
 
   const handleScreenshotUpload = (file: File) => {
@@ -355,7 +451,6 @@ useEffect(() => {
         return;
       }
 
-
       // Calculate total and prepare order items based on checkout type
       if (isGuestCheckout && guestItem) {
         totalAmount = guestItem.product.price * guestItem.quantity;
@@ -420,11 +515,9 @@ useEffect(() => {
       // Create order
       const orderData = {
         user_id: isAuthenticated && user ? user.id : null,
-        // total_amount: totalAmount,
         total_amount: finalTotal,
         delivery_charge: deliveryCharge,
         handling_fee: handlingFee,
-
         payment_method: paymentMethod,
         delivery_address: deliveryAddress,
         phone: formData.phone,
@@ -572,29 +665,17 @@ useEffect(() => {
   }
 
   // Get items to display (either cart items or guest item)
-  const displayItems = isGuestCheckout && guestItem ? [guestItem] :
-    cartItems.map(item => ({
-      product: item.product,
-      quantity: item.quantity
-    }));
-
-  // const displayTotal = isGuestCheckout && guestItem ? 
-  //   guestItem.product.price * guestItem.quantity : getTotalAmount();
-
-  // const rawTotal = isGuestCheckout && guestItem
-  //   ? guestItem.product.price * guestItem.quantity
-  //   : getTotalAmount();
-
-  // const discount = isManipurPincode ? Math.round(rawTotal * 0.10) : 0;
-  // const finalTotal = rawTotal - discount + deliveryCharge + handlingFee;
-
-  // const MIN_OUTSIDE_MANIPUR_ORDER = 300;
-
-  // const isBelowMinOutsideManipur =
-  //   !isManipurPincode && rawTotal < MIN_OUTSIDE_MANIPUR_ORDER;
-
-
-
+  const displayItems = isGuestCheckout && guestItem
+    ? [{
+        product_id: guestItem.product.id,
+        product: guestItem.product,
+        quantity: guestItem.quantity
+      }]
+    : cartItems.map(item => ({
+        product_id: item.product_id,
+        product: item.product,
+        quantity: item.quantity
+      }));
 
   return (
     <Layout>
@@ -648,9 +729,9 @@ useEffect(() => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {displayItems.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <div className="flex items-center space-x-3">
+                  {displayItems.map((item) => (
+                    <div key={item.product_id} className="flex justify-between items-start gap-3">
+                      <div className="flex items-start space-x-3">
                         <img
                           src={item.product.image_url || '/placeholder.svg'}
                           alt={item.product.name}
@@ -658,126 +739,198 @@ useEffect(() => {
                         />
                         <div>
                           <p className="font-medium">{item.product.name}</p>
-                          <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="flex items-center border rounded-md">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                disabled={item.quantity <= 1}
+                                onClick={() => handleQuantityChange(item.product_id, item.quantity - 1)}
+                                aria-label="Decrease quantity"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-8 text-center text-sm">{item.quantity}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleQuantityChange(item.product_id, item.quantity + 1)}
+                                aria-label="Increase quantity"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleRemoveItem(item.product_id)}
+                              aria-label="Remove item"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                      <p className="font-medium">₹{item.product.price * item.quantity}</p>
+                      <p className="font-medium whitespace-nowrap">₹{item.product.price * item.quantity}</p>
                     </div>
                   ))}
-                  <div className="border-t pt-4">
-                    <div className="border-t pt-4 space-y-2">
-                      <div className="flex justify-between">
-                        <span>Subtotal</span>
-                        <span>₹{rawTotal}</span>
-                      </div>
 
-                      {isManipurPincode && (
-                        <div className="flex justify-between text-green-600 text-sm">
-                          <span>Manipur Discount (10%)</span>
-                          <span>-₹{discount}</span>
-                        </div>
-                      )}
-
-                      {isManipurPincode ? (
-                        <div className="flex justify-between">
-                          <span>Delivery Charge</span>
-                          <span>₹80</span>
-                        </div>
-                      ) : rawTotal >= 300 ? (
-                        <p className="text-sm text-orange-600">
-                          Extra delivery fee may apply at final invoice @ ₹120–₹150 per kg.
-                          Delivery or Shipping charges will be adjusted before dispatch of the parcel.
-                        </p>
-                      ) : null}
-
-
-                      {handlingFee > 0 && (
-                        <div className="flex justify-between">
-                          <span>Handling Fee</span>
-                          <span>₹{handlingFee}</span>
-                        </div>
-                      )}
-
-                      <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                        <span>Total Payable</span>
-                        <span>₹{finalTotal}</span>
-                      </div>
-                      {isBelowMinOutsideManipur && (
-                        <p className="text-sm text-red-600 mt-2">
-                          Minimum order value of ₹300 is required for delivery outside Manipur.
-                        </p>
-                      )}
-                      {isBelowMinOutsideManipur && (
-  <Button
-    variant="outline"
-    className="w-full mt-3"
-    onClick={() => navigate('/shop')}
-  >
-    Add more items from Shop
-  </Button>
-
-  
-)}
-
-{isBelowMinOutsideManipur && bestSellers.length > 0 && (
-  <div className="mt-4">
-    <h4 className="text-sm font-semibold mb-2">
-      Popular items to add
-    </h4>
-
-    <div className="grid grid-cols-2 gap-3">
-      {bestSellers.map(product => (
-        <div
-          key={product.id}
-          className="border rounded-lg p-2 flex flex-col"
-        >
-          <img
-            src={product.image_url || '/placeholder.svg'}
-            className="h-20 w-full object-cover rounded"
-          />
-
-          <p className="text-sm font-medium mt-1 line-clamp-1">
-            {product.name}
-          </p>
-
-          <p className="text-sm font-bold">
-            ₹{product.offer_price ?? product.price}
-          </p>
-
-          <Button
-            size="sm"
-            className="mt-2"
-            onClick={async () => {
-              await addToCart(product.id, 1);
-              toast({
-                title: 'Added to cart',
-                description: product.name,
-              });
-            }}
-          >
-            Add
-          </Button>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-
+                  <div className="border-t pt-4 space-y-2">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>₹{rawTotal}</span>
                     </div>
 
                     {isManipurPincode && (
                       <div className="flex justify-between text-green-600 text-sm">
                         <span>Manipur Discount (10%)</span>
-                        <span>-₹{discount.toFixed(0)}</span>
+                        <span>-₹{discount}</span>
                       </div>
                     )}
-                    {/* <div>
-                          <p className="text-sm text-gray-600">Additional delivery charges may apply on final invoice.</p>
-                        </div> */}
+
+                    {isManipurPincode ? (
+                      <div className="flex justify-between">
+                        <span>Delivery Charge</span>
+                        <span>₹80</span>
+                      </div>
+                    ) : rawTotal >= 300 ? (
+                      <p className="text-sm text-orange-600">
+                        Extra delivery fee may apply at final invoice @ ₹120–₹150 per kg.
+                        Delivery or Shipping charges will be adjusted before dispatch of the parcel.
+                      </p>
+                    ) : null}
+
+                    {handlingFee > 0 && (
+                      <div className="flex justify-between">
+                        <span>Handling Fee</span>
+                        <span>₹{handlingFee}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                      <span>Total Payable</span>
+                      <span>₹{finalTotal}</span>
+                    </div>
+
+                    {isBelowMinOutsideManipur && (
+                      <p className="text-sm text-red-600 mt-2">
+                        Minimum order value of ₹300 is required for delivery outside Manipur.
+                      </p>
+                    )}
+
+                    {isBelowMinOutsideManipur && (
+                      <Button
+                        variant="outline"
+                        className="w-full mt-3"
+                        onClick={() => navigate('/shop')}
+                      >
+                        Add more items from Shop
+                      </Button>
+                    )}
+
+                    {isBelowMinOutsideManipur && bestSellers.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="text-sm font-semibold mb-2">
+                          Popular items to add
+                        </h4>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          {bestSellers.map(product => (
+                            <div
+                              key={product.id}
+                              className="border rounded-lg p-2 flex flex-col"
+                            >
+                              <img
+                                src={product.image_url || '/placeholder.svg'}
+                                alt={product.name}
+                                className="h-20 w-full object-cover rounded"
+                              />
+
+                              <p className="text-sm font-medium mt-1 line-clamp-1">
+                                {product.name}
+                              </p>
+
+                              <p className="text-sm font-bold">
+                                ₹{product.offer_price ?? product.price}
+                              </p>
+
+                              <Button
+                                size="sm"
+                                className="mt-2"
+                                onClick={async () => {
+                                  await addToCart(product.id, 1);
+                                  toast({
+                                    title: 'Added to cart',
+                                    description: product.name,
+                                  });
+                                }}
+                              >
+                                Add
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Related Products */}
+            {!isGuestCheckout && relatedProducts.length > 0 && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle>You may also like</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-3">
+                    {relatedProducts.map(product => (
+                      <div
+                        key={product.id}
+                        className="border rounded-lg p-2 flex flex-col"
+                      >
+                        <img
+                          src={product.image_url || '/placeholder.svg'}
+                          alt={product.name}
+                          className="h-24 w-full object-cover rounded"
+                        />
+
+                        <p className="text-sm font-medium mt-2 line-clamp-1">
+                          {product.name}
+                        </p>
+
+                        <p className="text-sm font-bold">
+                          ₹{product.offer_price ?? product.price}
+                        </p>
+
+                        <Button
+                          size="sm"
+                          className="mt-2 bg-[#7D2F38] text-white hover:bg-[#5A1F27]"
+                          onClick={async () => {
+                            await addToCart(product.id, 1);
+                            toast({
+                              title: 'Added to cart',
+                              description: product.name,
+                            });
+                          }}
+                        >
+                          Add to cart
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Checkout Form */}
@@ -913,8 +1066,7 @@ useEffect(() => {
               <CardContent>
                 <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
                   <div
-                    className={`flex items-center space-x-2 p-3 border rounded-lg ${!isManipurPincode ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
+                    className={`flex items-center space-x-2 p-3 border rounded-lg ${!isManipurPincode ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <RadioGroupItem
                       value="cod"
@@ -937,7 +1089,6 @@ useEffect(() => {
                     </Label>
                   </div>
 
-
                   <div className="flex items-center space-x-2 p-3 border rounded-lg">
                     <RadioGroupItem value="online" id="online" />
                     <Label htmlFor="online" className="flex items-center space-x-2 cursor-pointer flex-1">
@@ -945,7 +1096,6 @@ useEffect(() => {
                       <div>
                         <p className="font-medium">Online Payment (UPI)</p>
                         <p className="text-sm text-gray-600">Our team will contact you shortly regarding prepaid orders.</p>
-                        {/* <p className="text-sm text-gray-600">Pay using UPI, scan QR code below</p> */}
                       </div>
                     </Label>
                   </div>
@@ -975,7 +1125,6 @@ useEffect(() => {
                   ? 'Processing Order...'
                   : `Place Order - ₹${finalTotal}`}
             </Button>
-
           </div>
         </div>
       </div>

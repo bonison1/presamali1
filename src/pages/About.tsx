@@ -5,14 +5,14 @@ const About = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="bg-black text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">Our Story</h1>
-          <p className="text-xl md:text-2xl max-w-3xl mx-auto">
-            This is about section.
-          </p>
-        </div>
-      </section>
+      <section className="bg-[#2b1115] text-white py-16">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <h1 className="text-4xl md:text-5xl font-bold mb-6">Our Story</h1>
+    <p className="text-xl md:text-2xl max-w-3xl mx-auto">
+      This is about section.
+    </p>
+  </div>
+</section>
 
       {/* Main Content */}
       <section className="py-16 bg-white">

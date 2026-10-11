@@ -61,24 +61,28 @@ const Product = () => {
     }
   };
 
-  const handleAddToCart = () => {
-    if (!isAuthenticated) {
-      toast({
-        title: "Please sign in",
-        description: "You need to be signed in to add items to cart",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleAddToCart = async () => {
+  if (!isAuthenticated) {
+    toast({
+      title: "Please sign in",
+      description: "You need to be signed in to add items to cart",
+      variant: "destructive",
+    });
+    return;
+  }
 
-    if (!product) return;
+  if (!product) return;
 
-    addToCart(product.id, quantity);
+  try {
+    await addToCart(product.id, quantity);
     toast({
       title: "Added to cart",
       description: `${quantity} ${product.name} added to your cart`,
     });
-  };
+  } catch (error) {
+    console.error('Add to cart failed:', error);
+  }
+};
 
   const handleReviewSubmitted = () => {
     setRefreshTrigger(prev => prev + 1);
